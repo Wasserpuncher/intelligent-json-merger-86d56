@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Tests
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Virtual environment
+virtualenv/
+virtual-env/
+virtual_env/
+venv/
+env/
+.venv/
+
+# Miscellaneous
+*.log
+*.backup
+*.swp
+*.swo
+*.DS_Store
+
+# Temporary files created by example usage
+config1.json
+config2.json
+config3.json
+test_config1.json
+test_config2.json
+test_config_invalid.json
