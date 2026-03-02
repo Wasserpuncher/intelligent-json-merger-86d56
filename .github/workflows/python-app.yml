@@ -1,0 +1,41 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python CI/CD
+
+on: # Trigger-Ereignisse für den Workflow
+  push:
+    branches: [ "main" ] # Auslösen bei Push auf den 'main'-Branch
+  pull_request:
+    branches: [ "main" ] # Auslösen bei Pull-Requests auf den 'main'-Branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Der Runner, auf dem der Job ausgeführt wird
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"] # Matrix der zu testenden Python-Versionen
+
+    steps:
+    - uses: actions/checkout@v3 # Checkout des Repository-Codes
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3 # Python-Umgebung einrichten
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip # Pip aktualisieren
+        pip install flake8 pytest mypy # Abhängigkeiten installieren
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi # Falls vorhanden, requirements.txt installieren
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics # Syntaxfehler und undefinierte Namen prüfen
+        # Exit-code 0 means no errors or warnings. Exit-code 1 means there were errors.
+        flake8 . --count --max-complexity=10 --max-line-length=120 --statistics # Komplexität und Zeilenlänge prüfen
+    - name: Type check with mypy
+      run: |
+        mypy . # Statische Typenprüfung durchführen
+    - name: Test with pytest
+      run: |
+        pytest # Unit-Tests ausführen
