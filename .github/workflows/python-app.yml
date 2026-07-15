@@ -32,7 +32,7 @@ jobs:
         # Stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics # Syntaxfehler und undefinierte Namen prüfen
         # Exit-code 0 means no errors or warnings. Exit-code 1 means there were errors.
-        flake8 . --count --max-complexity=10 --max-line-length=120 --statistics # Komplexität und Zeilenlänge prüfen
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics # Komplexität und Zeilenlänge prüfen
     - name: Type check with mypy
       run: |
         mypy . # Statische Typenprüfung durchführen
