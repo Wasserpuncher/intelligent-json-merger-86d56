@@ -46,13 +46,13 @@ class JsonMerger:
         elif isinstance(base, list) and isinstance(new, list):
             # Wenn beide Listen sind, hänge neue Elemente an, vermeide Duplikate.
             # If both are lists, append new elements, avoiding duplicates.
-            merged = list(base) # Erstelle eine Kopie der Basislise, um die Originalreferenz nicht zu ändern.
-                                # Create a copy of the base list to avoid modifying the original reference.
+            merged_list = list(base) # Erstelle eine Kopie der Basislise, um die Originalreferenz nicht zu ändern.
+                                     # Create a copy of the base list to avoid modifying the original reference.
             for item in new:
-                if item not in merged: # Einfache Deduplizierung für primitive Typen in Listen.
-                                       # Simple deduplication for primitive types in lists.
-                    merged.append(item)
-            return merged
+                if item not in merged_list: # Einfache Deduplizierung für primitive Typen in Listen.
+                                            # Simple deduplication for primitive types in lists.
+                    merged_list.append(item)
+            return merged_list
         else:
             # Für alle anderen Typen (Skalare, None, oder Typenkonflikte), überschreibe mit dem neuen Wert.
             # For all other types (scalars, None, or type conflicts), overwrite with the new value.
