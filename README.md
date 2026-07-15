@@ -2,7 +2,7 @@
 
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-[![CI/CD](https://github.com/your-org/intelligent-json-merger/actions/workflows/python-app.yml/badge.svg)](https://github.com/your-org/intelligent-json-merger/actions/workflows/python-app.yml)
+[![CI/CD](https://github.com/Wasserpuncher/intelligent-json-merger-86d56/actions/workflows/python-app.yml/badge.svg)](https://github.com/Wasserpuncher/intelligent-json-merger-86d56/actions/workflows/python-app.yml)
 
 ## 💡 About
 
@@ -23,7 +23,7 @@ This project aims to solve the common problem of managing complex configurations
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/your-org/intelligent-json-merger.git
+git clone https://github.com/Wasserpuncher/intelligent-json-merger-86d56.git
 cd intelligent-json-merger
 pip install -r requirements.txt
 ```
