@@ -1,7 +1,16 @@
 import unittest
 import json
 import os
-from main import JsonMerger
+import tempfile
+import shutil
+from typing import Any
+from main import (
+    JsonMerger,
+    MergeRunConfig,
+    load_run_config,
+    run_from_config,
+    main,
+)
 
 class TestJsonMerger(unittest.TestCase):
     """
@@ -202,6 +211,131 @@ class TestJsonMerger(unittest.TestCase):
         merged = self.merger.merge_configs(config_a, config_b, config_c)
         expected = {"key": 3, "nested": {"x": 30, "y": 20, "z": 30}}
         self.assertEqual(merged, expected)
+
+class TestMergeRunConfig(unittest.TestCase):
+    """
+    Tests für den steuerungsdatei-gesteuerten Merge mehrerer JSON-Dateien (Issue #1).
+    Tests for the control-file-driven merge of multiple JSON files (Issue #1).
+    """
+
+    def setUp(self) -> None:
+        self.tmpdir = tempfile.mkdtemp()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def _write_json(self, name: str, data: Any) -> str:
+        path = os.path.join(self.tmpdir, name)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        return path
+
+    def test_from_dict_valid(self) -> None:
+        cfg = MergeRunConfig.from_dict(
+            {"inputs": ["a.json", "b.json"], "output": "out.json"}
+        )
+        self.assertEqual(cfg.inputs, ["a.json", "b.json"])
+        self.assertEqual(cfg.output, "out.json")
+
+    def test_from_dict_defaults_output_none(self) -> None:
+        cfg = MergeRunConfig.from_dict({"inputs": ["a.json"]})
+        self.assertIsNone(cfg.output)
+
+    def test_from_dict_missing_inputs(self) -> None:
+        with self.assertRaises(ValueError):
+            MergeRunConfig.from_dict({"output": "out.json"})
+
+    def test_from_dict_non_string_input(self) -> None:
+        with self.assertRaises(ValueError):
+            MergeRunConfig.from_dict({"inputs": [123]})
+
+    def test_load_run_config_missing_file(self) -> None:
+        with self.assertRaises(FileNotFoundError):
+            load_run_config(os.path.join(self.tmpdir, "missing.json"))
+
+    def test_run_from_config_merges_multiple_files_to_output(self) -> None:
+        # Drei echte Eingabedateien schreiben und über die Steuerungsdatei mergen.
+        # Write three real input files and merge them through the control file.
+        self._write_json(
+            "c1.json",
+            {"app": "demo", "settings": {"debug": True, "features": ["auth"]}},
+        )
+        self._write_json(
+            "c2.json",
+            {"version": "1.1", "settings": {"features": ["metrics"]}},
+        )
+        self._write_json(
+            "c3.json",
+            {"settings": {"debug": False}},
+        )
+        output_path = os.path.join(self.tmpdir, "merged.json")
+        config_path = self._write_json(
+            "merge-config.json",
+            {
+                "inputs": [
+                    os.path.join(self.tmpdir, "c1.json"),
+                    os.path.join(self.tmpdir, "c2.json"),
+                    os.path.join(self.tmpdir, "c3.json"),
+                ],
+                "output": output_path,
+            },
+        )
+        result = run_from_config(config_path)
+        expected = {
+            "app": "demo",
+            "settings": {"debug": False, "features": ["auth", "metrics"]},
+            "version": "1.1",
+        }
+        self.assertEqual(result, expected)
+        # Die Ausgabedatei muss wirklich geschrieben worden sein.
+        # The output file must actually have been written.
+        with open(output_path, "r", encoding="utf-8") as f:
+            self.assertEqual(json.load(f), expected)
+
+    def test_run_from_config_without_output_returns_result(self) -> None:
+        self._write_json("a.json", {"x": 1})
+        self._write_json("b.json", {"y": 2})
+        config_path = self._write_json(
+            "merge-config.json",
+            {
+                "inputs": [
+                    os.path.join(self.tmpdir, "a.json"),
+                    os.path.join(self.tmpdir, "b.json"),
+                ]
+            },
+        )
+        result = run_from_config(config_path)
+        self.assertEqual(result, {"x": 1, "y": 2})
+
+    def test_run_from_config_invalid_input_file(self) -> None:
+        # Eine Eingabedatei mit ungültigem JSON muss als ValueError gemeldet werden.
+        # An input file with invalid JSON must be surfaced as a ValueError.
+        bad_path = os.path.join(self.tmpdir, "bad.json")
+        with open(bad_path, "w", encoding="utf-8") as f:
+            f.write("{invalid json")
+        config_path = self._write_json(
+            "merge-config.json", {"inputs": [bad_path]}
+        )
+        with self.assertRaises(ValueError):
+            run_from_config(config_path)
+
+    def test_main_cli_success(self) -> None:
+        self._write_json("a.json", {"x": 1})
+        self._write_json("b.json", {"y": 2})
+        config_path = self._write_json(
+            "merge-config.json",
+            {
+                "inputs": [
+                    os.path.join(self.tmpdir, "a.json"),
+                    os.path.join(self.tmpdir, "b.json"),
+                ]
+            },
+        )
+        self.assertEqual(main(["--config", config_path]), 0)
+
+    def test_main_cli_missing_config(self) -> None:
+        self.assertEqual(main(["--config", os.path.join(self.tmpdir, "nope.json")]), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

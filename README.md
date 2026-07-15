@@ -130,6 +130,38 @@ except ValueError as e:
     print(f"Error: {e}")
 ```
 
+### Configuration-file driven merges
+
+Instead of listing the files to merge in code, a whole run can be described in a
+single JSON control file. It names the input files to load and merge, and where
+to write the result:
+
+```json
+{
+  "inputs": ["config1.json", "config2.json", "config3.json"],
+  "output": "merged.json"
+}
+```
+
+*   `inputs` (required): ordered list of JSON files to load and deep-merge,
+    earlier first.
+*   `output` (optional): path the merged result is written to. If omitted, the
+    result is printed to stdout.
+
+Run it from the command line (see `merge-config.example.json` for a template):
+
+```bash
+python main.py --config merge-config.json
+```
+
+Or programmatically:
+
+```python
+from main import run_from_config
+
+merged = run_from_config("merge-config.json")
+```
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started.

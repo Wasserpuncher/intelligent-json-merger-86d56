@@ -1,4 +1,7 @@
+import argparse
 import json
+import os
+import sys
 from typing import Any, Dict, List, Union, Optional
 
 class JsonMerger:
@@ -121,9 +124,131 @@ class JsonMerger:
 
         return final_config
 
-# Beispielnutzung des JsonMergers
-# Example usage of the JsonMerger
-if __name__ == "__main__":
+
+# Standardname der Merge-Steuerungsdatei, falls kein Pfad angegeben wird.
+# Default name of the merge control file if no path is provided.
+DEFAULT_MERGE_CONFIG_FILENAME = "merge-config.json"
+
+
+class MergeRunConfig:
+    """
+    Beschreibt einen kompletten Merge-Lauf, geladen aus einer JSON-Steuerungsdatei.
+    Die Steuerungsdatei benennt die zu ladenden Eingabedateien und das Ausgabeziel,
+    sodass mehrere JSON-Dateien ohne Code-Änderungen gemergt werden können.
+
+    Describes a complete merge run loaded from a JSON control file.
+    The control file names the input files to load and the output target, so
+    multiple JSON files can be merged without code changes.
+    """
+
+    def __init__(self, inputs: List[str], output: Optional[str] = None) -> None:
+        """
+        Args:
+            inputs: Geordnete Liste der zu mergenden JSON-Eingabedateien.
+                    Ordered list of JSON input files to merge.
+            output: Optionaler Pfad, in den das Ergebnis geschrieben wird.
+                    Optional path the result is written to.
+        """
+        self.inputs = inputs
+        self.output = output
+
+    @staticmethod
+    def from_dict(data: Any) -> "MergeRunConfig":
+        """
+        Erzeugt eine MergeRunConfig aus einem geparsten JSON-Objekt und validiert die Felder.
+        Creates a MergeRunConfig from a parsed JSON object and validates the fields.
+
+        Raises:
+            ValueError: Wenn Pflichtfelder fehlen oder Werte ungültig sind.
+                        If required fields are missing or values are invalid.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("Die Merge-Steuerungsdatei muss ein JSON-Objekt sein.")
+
+        raw_inputs = data.get("inputs")
+        if not isinstance(raw_inputs, list) or not raw_inputs:
+            raise ValueError("Die Steuerungsdatei benötigt ein nicht-leeres 'inputs'-Array.")
+        inputs: List[str] = []
+        for item in raw_inputs:
+            if not isinstance(item, str):
+                raise ValueError("Jeder Eintrag in 'inputs' muss ein Dateipfad (String) sein.")
+            inputs.append(item)
+
+        output = data.get("output")
+        if output is not None and not isinstance(output, str):
+            raise ValueError("'output' muss ein Dateipfad (String) oder null sein.")
+
+        return MergeRunConfig(inputs=inputs, output=output)
+
+
+def load_run_config(config_path: str = DEFAULT_MERGE_CONFIG_FILENAME) -> MergeRunConfig:
+    """
+    Lädt und validiert eine Merge-Steuerungsdatei von der Festplatte.
+    Loads and validates a merge control file from disk.
+
+    Raises:
+        FileNotFoundError: Wenn die Steuerungsdatei fehlt. If the control file is missing.
+        json.JSONDecodeError: Wenn die Datei kein gültiges JSON ist. If it is not valid JSON.
+        ValueError: Wenn der Inhalt kein gültiges Merge-Schema beschreibt. If schema is invalid.
+    """
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Merge-Steuerungsdatei nicht gefunden: {config_path}")
+    with open(config_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return MergeRunConfig.from_dict(data)
+
+
+def run_from_config(config_path: str = DEFAULT_MERGE_CONFIG_FILENAME) -> Dict[str, Any]:
+    """
+    Führt einen kompletten Merge anhand einer Steuerungsdatei aus: lädt alle
+    benannten Eingabedateien, mergt sie in Reihenfolge und schreibt das Ergebnis
+    -- falls angegeben -- in die Ausgabedatei. Gibt die zusammengeführte Struktur zurück.
+
+    Runs a complete merge driven by a control file: loads all named input files,
+    merges them in order and -- if requested -- writes the result to the output
+    file. Returns the merged structure.
+    """
+    run_config = load_run_config(config_path)
+    merger = JsonMerger()
+    # Die Eingabedateipfade werden direkt an merge_configs übergeben, das jede
+    # Datei lädt und tiefgehend zusammenführt.
+    # The input file paths are passed straight to merge_configs, which loads and
+    # deep-merges each file.
+    sources: List[Union[str, Dict[str, Any]]] = list(run_config.inputs)
+    result = merger.merge_configs(*sources)
+    if run_config.output is not None:
+        with open(run_config.output, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=4, ensure_ascii=False)
+    return result
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """
+    Kommandozeilen-Einstiegspunkt: steuert einen Merge über eine JSON-Steuerungsdatei.
+    Command line entry point: drives a merge via a JSON control file.
+    """
+    parser = argparse.ArgumentParser(
+        description="Merge multiple JSON files driven by a JSON control file.",
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        default=DEFAULT_MERGE_CONFIG_FILENAME,
+        help=f"Path to the merge control file (default: {DEFAULT_MERGE_CONFIG_FILENAME}).",
+    )
+    args = parser.parse_args(argv)
+    try:
+        result = run_from_config(args.config)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError, TypeError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(result, indent=4, ensure_ascii=False))
+    return 0
+
+
+def _run_demo() -> None:
+    # Beispielnutzung des JsonMergers
+    # Example usage of the JsonMerger
     merger = JsonMerger()
 
     # Erstelle einige temporäre Konfigurationsdateien für das Beispiel
@@ -207,8 +332,11 @@ if __name__ == "__main__":
 
     # Aufräumen der temporären Dateien
     # Clean up temporary files
-    import os
     os.remove("config1.json")
     os.remove("config2.json")
     os.remove("config3.json")
     print("\n--- Temporäre Konfigurationsdateien entfernt ---")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
